@@ -1,5 +1,10 @@
 // Import packages, initialize an express app, and define the port you will use
+const express = require("express");
+const app = express();
+const PORT = 3000;
 
+
+app.use(express.json());
 
 
 // Data for the server
@@ -61,3 +66,8 @@ const menuItems = [
 ];
 
 // Define routes and implement middleware here
+
+
+app.listen(PORT, () => {
+         console.log(`Restaurant API server running at http://localhost:${PORT}`);
+    });
