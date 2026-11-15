@@ -1,10 +1,27 @@
 // Import packages, initialize an express app, and define the port you will use
 const express = require("express");
+const { body, validationResult } = require('express-validator');
 const app = express();
 const PORT = 3000;
 
+// Custom request logging middleware
+const requestLogger = (req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${req.method} ${req.originalUrl}`);
 
+    // Log request body for POST and PUT requests
+    if (req.method === 'POST' || req.method === 'PUT') {
+        console.log('Request Body:', JSON.stringify(req.body, null, 2));
+    }
+
+    next(); // Pass control to next middleware
+};
+
+// Built-in middleware for parsing JSON
 app.use(express.json());
+
+// Custom logging middleware
+app.use(requestLogger);
 
 
 // Data for the server
@@ -65,6 +82,55 @@ let menuItems = [
   }
 ];
 
+// Complete validation rules for menu items
+const menuItemValidation = [
+    body('name')
+        .isLength({ min: 3 })
+        .withMessage('Name must be at least 3 characters long'),
+
+    body('description')
+        .isLength({ min: 10 })
+        .withMessage('Description must be at least 10 characters long'),
+
+    body('price')
+        .isFloat({ gt: 0 })
+        .withMessage('Price must be a number greater than 0'),
+
+    body('category')
+        .isIn(['appetizer', 'entree', 'dessert', 'beverage'])
+        .withMessage('Category must be appetizer, entree, dessert, or beverage'),
+
+    body('ingredients')
+        .isArray({ min: 1 })
+        .withMessage('Ingredients must be an array with at least one ingredient'),
+
+    body('available')
+        .optional()
+        .isBoolean()
+        .withMessage('Available must be true or false')
+];
+
+// Handle validation errors
+const handleValidationErrors = (req, res, next) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        const errorMessages = errors.array().map(error => error.msg);
+
+        return res.status(400).json({
+            error: 'Validation failed',
+            messages: errorMessages
+        });
+    }
+
+    // Set default value for available if not provided
+    if (req.body.available === undefined) {
+        req.body.available = true;
+    }
+
+    next();
+};
+
 // GET / - Welcome Message
 app.get('/', (req, res) => {
     res.send('Restaurant API server running!');
@@ -88,12 +154,8 @@ app.get('/api/menu/:id', (req, res) => {
 });
 
 // POST /api/menu - Add a new menu item
-app.post('/api/menu', (req, res) => {
+app.post('/api/menu', menuItemValidation, handleValidationErrors, (req, res) => {
     const { name, description, price, category, ingredients, available } = req.body;
-
-    if (!name || !description) {
-        return res.status(400).json({ error: 'Name and description are required' });
-    }
 
     const newItem = {
         id: menuItems.length + 1,
@@ -111,30 +173,24 @@ app.post('/api/menu', (req, res) => {
 });
 
 // PUT /api/menu/:id - Update an existing menu item
-app.put('/api/menu/:id', (req, res) => {
+app.put('/api/menu/:id', menuItemValidation, handleValidationErrors, (req, res) => {
     const itemId = parseInt(req.params.id);
     const { name, description, price, category, ingredients, available } = req.body;
 
-    //Find the menu item to update
-    const itemIndex = menuItems.findIndex((m) => m.id === itemId);
+    // Find the menu item to update
+    const item = menuItems.find((m) => m.id === itemId);
 
-    if (itemIndex === -1) {
+    if (!item) {
         return res.status(404).json({error: 'Menu item not found'})
     }
 
-    // Reject empty update bodies
-    if ([name, description, price, category, ingredients, available].every((value) => value === undefined)) {
-        return res.status(400).json({ error: 'No valid fields provided for update' });
-    }
-
-    // Partially update only the fields that were provided
-    const item = menuItems[itemIndex];
-    if (name !== undefined) item.name = name;
-    if (description !== undefined) item.description = description;
-    if (price !== undefined) item.price = price;
-    if (category !== undefined) item.category = category;
-    if (ingredients !== undefined) item.ingredients = ingredients;
-    if (available !== undefined) item.available = available;
+    // Update all of the menu item's fields
+    item.name = name;
+    item.description = description;
+    item.price = price;
+    item.category = category;
+    item.ingredients = ingredients;
+    item.available = available;
 
     res.json(item);
 });
