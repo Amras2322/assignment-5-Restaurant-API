@@ -8,7 +8,7 @@ app.use(express.json());
 
 
 // Data for the server
-const menuItems = [
+let menuItems = [
   {
     id: 1,
     name: "Classic Burger",
@@ -65,30 +65,99 @@ const menuItems = [
   }
 ];
 
+// GET / - Welcome Message
+app.get('/', (req, res) => {
+    res.send('Restaurant API server running!');
+})
+
 // GET /api/menu - Retrieve all menu items
 app.get('/api/menu', (req, res) => {
-    res.json(menuItems)
-})
-// GET /api/menu/:id - Retrieve a specific menu item
-app.get('/api/menu/:id', (req, res) => {
-    const id = parseInt(req.params.id);
+    res.json(menuItems);
+});
 
-    const item = menuItems.find(item => item.id === id)
-    
-    if(item) {
-        res.json(item)
+// GET /api/menu/:id - Retrieve a specific menu item by ID
+app.get('/api/menu/:id', (req, res) => {
+    const itemId = parseInt(req.params.id);
+    const item = menuItems.find((m) => m.id === itemId);
+
+    if (item) {
+        res.json(item);
     } else {
-        res.status(404).json({ error: "Item not found" })
+        res.status(404).json({error: 'Menu item not found'});
     }
-})
+});
+
 // POST /api/menu - Add a new menu item
+app.post('/api/menu', (req, res) => {
+    const { name, description, price, category, ingredients, available } = req.body;
+
+    if (!name || !description) {
+        return res.status(400).json({ error: 'Name and description are required' });
+    }
+
+    const newItem = {
+        id: menuItems.length + 1,
+        name,
+        description,
+        price,
+        category,
+        ingredients,
+        available
+    };
+
+    menuItems.push(newItem);
+
+    res.status(201).json(newItem);
+});
 
 // PUT /api/menu/:id - Update an existing menu item
+app.put('/api/menu/:id', (req, res) => {
+    const itemId = parseInt(req.params.id);
+    const { name, description, price, category, ingredients, available } = req.body;
+
+    //Find the menu item to update
+    const itemIndex = menuItems.findIndex((m) => m.id === itemId);
+
+    if (itemIndex === -1) {
+        return res.status(404).json({error: 'Menu item not found'})
+    }
+
+    // Reject empty update bodies
+    if ([name, description, price, category, ingredients, available].every((value) => value === undefined)) {
+        return res.status(400).json({ error: 'No valid fields provided for update' });
+    }
+
+    // Partially update only the fields that were provided
+    const item = menuItems[itemIndex];
+    if (name !== undefined) item.name = name;
+    if (description !== undefined) item.description = description;
+    if (price !== undefined) item.price = price;
+    if (category !== undefined) item.category = category;
+    if (ingredients !== undefined) item.ingredients = ingredients;
+    if (available !== undefined) item.available = available;
+
+    res.json(item);
+});
 
 // DELETE /api/menu/:id - Remove a menu item
+app.delete('/api/menu/:id', (req, res) => {
+    const itemId = parseInt(req.params.id);
+    const itemIndex = menuItems.findIndex((m) => m.id === itemId);
 
+    if (itemIndex === -1) {
+        return res.status(404).json({ error: 'Menu item not found' });
+    }
 
+    const deletedItem = menuItems.splice(itemIndex, 1)[0];
 
-app.listen(PORT, () => {
+    res.json({ message: 'Menu item deleted successfully', item: deletedItem });
+});
+
+// Only start server when running directly, not when testing
+if (require.main === module) {
+    app.listen(PORT, () => {
          console.log(`Restaurant API server running at http://localhost:${PORT}`);
     });
+}
+
+module.exports = app;
