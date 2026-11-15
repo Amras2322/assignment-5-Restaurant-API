@@ -65,7 +65,28 @@ const menuItems = [
   }
 ];
 
-// Define routes and implement middleware here
+// GET /api/menu - Retrieve all menu items
+app.get('/api/menu', (req, res) => {
+    res.json(menuItems)
+})
+// GET /api/menu/:id - Retrieve a specific menu item
+app.get('/api/menu/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+
+    const item = menuItems.find(item => item.id === id)
+    
+    if(item) {
+        res.json(item)
+    } else {
+        res.status(404).json({ error: "Item not found" })
+    }
+})
+// POST /api/menu - Add a new menu item
+
+// PUT /api/menu/:id - Update an existing menu item
+
+// DELETE /api/menu/:id - Remove a menu item
+
 
 
 app.listen(PORT, () => {
